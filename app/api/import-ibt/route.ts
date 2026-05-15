@@ -64,6 +64,14 @@ export async function POST(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
+  // Récupère l'utilisateur depuis le token envoyé par le watcher
+  let userId: string | null = null
+  const userToken = request.headers.get('x-user-token')
+  if (userToken) {
+    const { data } = await supabase.auth.getUser(userToken)
+    userId = data.user?.id ?? null
+  }
+
   const { error } = await supabase.from('sessions').insert({
     circuit:  info.circuit,
     car:      info.car,
@@ -72,7 +80,7 @@ export async function POST(request: NextRequest) {
     sim:      'iRacing',
     laptime:  info.bestLapSec ? secToLaptime(info.bestLapSec) : null,
     laps:     info.laps || null,
-    user_id:  null,
+    user_id:  userId,
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
