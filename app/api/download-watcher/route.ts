@@ -10,8 +10,9 @@ export async function GET() {
   const bat = `@echo off
 title SimHub Watcher
 set URL=https://simhub-a2ye.vercel.app/api/watcher-js?uid=${user.id}
-set TMP=%TEMP%\\simhub-watcher.js
+set TMP=%USERPROFILE%\\simhub-watcher.js
 echo Telechargement du watcher...
+if exist "%TMP%" del "%TMP%"
 powershell -NoProfile -Command "Invoke-WebRequest -Uri '%URL%' -OutFile '%TMP%'"
 echo Demarrage...
 "C:\\Program Files\\nodejs\\node.exe" "%TMP%"
