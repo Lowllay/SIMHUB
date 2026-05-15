@@ -82,6 +82,48 @@ export async function getWinCount() {
   }
 }
 
+export async function getLaptimeChartData() {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase.from('sessions').select('laptime, session_date, circuit')
+      .not('laptime', 'is', null).order('created_at', { ascending: true }).limit(30)
+    if (!data || data.length === 0) return []
+    const toSec = (t: string) => { const [m, rest] = t.split(':'); return parseInt(m) * 60 + parseFloat(rest) }
+    return data.map((s, i) => ({
+      label: s.session_date ?? `S${i + 1}`,
+      value: toSec(s.laptime!),
+    }))
+  } catch { return [] }
+}
+
+export async function getCategoryStats() {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase.from('sessions').select('category, laptime, pos')
+    if (!data || data.length === 0) return []
+    const toSec = (t: string) => { const [m, rest] = t.split(':'); return parseInt(m) * 60 + parseFloat(rest) }
+    const map: Record<string, { sessions: number; best: number | null; wins: number }> = {}
+    for (const s of data) {
+      const cat = s.category ?? 'GT3'
+      if (!map[cat]) map[cat] = { sessions: 0, best: null, wins: 0 }
+      map[cat].sessions++
+      if (s.pos === 1) map[cat].wins++
+      if (s.laptime) {
+        const sec = toSec(s.laptime)
+        if (map[cat].best === null || sec < map[cat].best!) map[cat].best = sec
+      }
+    }
+    const colors: Record<string, string> = { GT3: '#e63946', GT4: '#f59e0b', LMH: '#3b82f6', LMDh: '#22c55e', GTE: '#a855f7', 'Open Wheel': '#06b6d4' }
+    const total = data.length
+    return Object.entries(map).map(([name, v]) => ({
+      name, sessions: v.sessions, wins: v.wins,
+      best: v.best ? `${Math.floor(v.best / 60)}:${(v.best % 60).toFixed(3).padStart(6, '0')}` : '—',
+      pct: Math.round((v.sessions / total) * 100),
+      color: colors[name] ?? '#94a3b8',
+    }))
+  } catch { return [] }
+}
+
 export async function getDashboardStats() {
   try {
     const supabase = await createClient()

@@ -1,15 +1,16 @@
 import Header from '@/components/Header'
-import { getSessions, getSimStats, getTopCircuits, getDashboardStats } from '@/lib/queries'
+import { getSessions, getSimStats, getTopCircuits, getDashboardStats, getLaptimeChartData } from '@/lib/queries'
 import LaptimeChart from './LaptimeChart'
 import SimChart from './SimChart'
 import Link from 'next/link'
 
 export default async function Dashboard() {
-  const [allSessions, simStats, topCircuits, stats] = await Promise.all([
+  const [allSessions, simStats, topCircuits, stats, laptimeData] = await Promise.all([
     getSessions(),
     getSimStats(),
     getTopCircuits(),
     getDashboardStats(),
+    getLaptimeChartData(),
   ])
   const recent = allSessions.slice(0, 7)
 
@@ -84,7 +85,7 @@ export default async function Dashboard() {
                 ))}
               </div>
             </div>
-            <div style={{ height: 190 }}><LaptimeChart /></div>
+            <div style={{ height: 190 }}><LaptimeChart data={laptimeData} /></div>
           </div>
 
           <div className="card">

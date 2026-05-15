@@ -1,10 +1,17 @@
 'use client'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
-import { generateLaptimeData, fmtSec } from '@/lib/data'
-import { useMemo } from 'react'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { fmtSec } from '@/lib/data'
 
-export default function LaptimeChart() {
-  const data = useMemo(() => generateLaptimeData(), [])
+interface Props { data: { label: string; value: number }[] }
+
+export default function LaptimeChart({ data }: Props) {
+  if (data.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <p className="text-sm" style={{ color: 'var(--dim)' }}>Aucune session enregistrée</p>
+      </div>
+    )
+  }
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -15,12 +22,8 @@ export default function LaptimeChart() {
           </linearGradient>
         </defs>
         <XAxis dataKey="label" tick={{ fill: '#4a5568', fontSize: 10 }} axisLine={{ stroke: '#22232e' }} tickLine={false} interval={4} />
-        <YAxis
-          tick={{ fill: '#4a5568', fontSize: 10 }} axisLine={{ stroke: '#22232e' }} tickLine={false}
-          reversed domain={['auto', 'auto']}
-          tickFormatter={fmtSec}
-          width={52}
-        />
+        <YAxis tick={{ fill: '#4a5568', fontSize: 10 }} axisLine={{ stroke: '#22232e' }} tickLine={false}
+          reversed domain={['auto', 'auto']} tickFormatter={fmtSec} width={52} />
         <Tooltip
           contentStyle={{ background: '#1a1b23', border: '1px solid #22232e', borderRadius: 8, fontSize: 12 }}
           labelStyle={{ color: '#94a3b8' }}
