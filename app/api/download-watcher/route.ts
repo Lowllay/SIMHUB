@@ -1,61 +1,85 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+function toEncodedCommand(script: string): string {
+  // PowerShell -EncodedCommand attend du UTF-16LE en base64
+  const buf = Buffer.alloc(script.length * 2)
+  for (let i = 0; i < script.length; i++) buf.writeUInt16LE(script.charCodeAt(i), i * 2)
+  return buf.toString('base64')
+}
+
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) return NextResponse.json({ error: 'Non connecté' }, { status: 401 })
 
   const uid    = user.id
   const secret = '9xHvhnwMFaoBlSTEuejtQmsU6PCbVgWy'
   const api    = 'https://simhub-a2ye.vercel.app/api/import-ibt'
 
-  // JS minifié sur une ligne — exécuté directement via node -e (aucun fichier téléchargé)
-  const js = [
-    `const UID='${uid}',SEC='${secret}',API='${api}';`,
-    `const fs=require('fs'),path=require('path'),os=require('os');`,
-    `const DIR=path.join(os.homedir(),'Documents','iRacing','telemetry');`,
-    `const PF=path.join(os.homedir(),'simhub-processed.json');`,
-    `function log(m){console.log('['+new Date().toLocaleTimeString('fr-FR')+'] '+m)}`,
-    `function load(){try{return new Set(JSON.parse(fs.readFileSync(PF,'utf8')))}catch{return new Set()}}`,
-    `function save(s){fs.writeFileSync(PF,JSON.stringify([...s]))}`,
-    `async function upload(fp){`,
-      `const form=new FormData();`,
-      `form.append('ibt',new Blob([fs.readFileSync(fp)]),path.basename(fp));`,
-      `const r=await fetch(API,{method:'POST',headers:{'x-secret':SEC,'x-user-id':UID},body:form});`,
-      `if(!r.ok)throw new Error('HTTP '+r.status);`,
-      `return r.json()`,
-    `}`,
-    `function files(dir){`,
-      `if(!fs.existsSync(dir))return[];`,
-      `return fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>`,
-        `e.isDirectory()?files(path.join(dir,e.name)):e.name.endsWith('.ibt')?[path.join(dir,e.name)]:[]`,
-      `)`,
-    `}`,
-    `async function scan(){`,
-      `const p=load();`,
-      `for(const fp of files(DIR)){`,
-        `const k=path.relative(DIR,fp);`,
-        `if(p.has(k))continue;`,
-        `log('Nouvelle session: '+path.basename(fp));`,
-        `try{const d=await upload(fp);p.add(k);save(p);log('OK - '+d.circuit);}`,
-        `catch(e){log('Erreur: '+e.message);}`,
-      `}`,
-    `}`,
-    `log('SimHub Watcher demarre - dossier: '+DIR);`,
-    `scan();setInterval(scan,30000);`,
-  ].join('')
+  const ps = `
+$USER_ID = '${uid}'
+$SECRET  = '${secret}'
+$API_URL = '${api}'
+$DIR     = [System.IO.Path]::Combine($env:USERPROFILE, 'Documents', 'iRacing', 'telemetry')
+$PF      = [System.IO.Path]::Combine($env:USERPROFILE, 'simhub-processed.json')
+
+function Write-Log { param($m); Write-Host "[$([DateTime]::Now.ToString('HH:mm:ss'))] $m" }
+
+function Get-Processed {
+  if (Test-Path $PF) { $j = Get-Content $PF -Raw; if ($j) { return @($j | ConvertFrom-Json) } }
+  return @()
+}
+
+function Save-Processed { param($list); ($list | ConvertTo-Json) | Set-Content $PF -Encoding UTF8 }
+
+function Send-File { param($fp)
+  $boundary = [System.Guid]::NewGuid().ToString()
+  $fileName = [System.IO.Path]::GetFileName($fp)
+  $fileBytes = [System.IO.File]::ReadAllBytes($fp)
+  $enc = [System.Text.Encoding]::UTF8
+  $header = $enc.GetBytes("--$boundary\r\nContent-Disposition: form-data; name=""ibt""; filename=""$fileName""\r\nContent-Type: application/octet-stream\r\n\r\n")
+  $footer = $enc.GetBytes("\r\n--$boundary--\r\n")
+  $ms = New-Object System.IO.MemoryStream
+  $ms.Write($header,    0, $header.Length)
+  $ms.Write($fileBytes, 0, $fileBytes.Length)
+  $ms.Write($footer,    0, $footer.Length)
+  $r = Invoke-WebRequest -Uri $API_URL -Method POST -Body $ms.ToArray() \`
+    -ContentType "multipart/form-data; boundary=$boundary" \`
+    -Headers @{'x-secret'=$SECRET;'x-user-id'=$USER_ID} -UseBasicParsing
+  return $r.Content | ConvertFrom-Json
+}
+
+function Invoke-Scan {
+  $processed = Get-Processed
+  if (-not (Test-Path $DIR)) { Write-Log "Dossier iRacing introuvable: $DIR"; return }
+  $files = Get-ChildItem -Path $DIR -Filter '*.ibt' -Recurse -ErrorAction SilentlyContinue
+  foreach ($f in $files) {
+    if ($processed -contains $f.Name) { continue }
+    Write-Log "Nouvelle session: $($f.Name)"
+    try {
+      $r = Send-File $f.FullName
+      $processed += $f.Name
+      Save-Processed $processed
+      Write-Log "OK - $($r.circuit)"
+    } catch {
+      Write-Log "Erreur: $($_.Exception.Message)"
+    }
+  }
+}
+
+Write-Log "SimHub Watcher demarre"
+Write-Log "Dossier surveille: $DIR"
+Write-Log "En attente de sessions iRacing..."
+Invoke-Scan
+while ($true) { Start-Sleep -Seconds 30; Invoke-Scan }
+`
+
+  const encoded = toEncodedCommand(ps)
 
   const bat = `@echo off
 title SimHub Watcher
-where node >nul 2>&1
-if errorlevel 1 (
-  echo Node.js n'est pas installe. Telechargez-le sur https://nodejs.org
-  pause
-  exit /b
-)
-node -e "${js}"
+powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encoded}
 pause
 `
 
