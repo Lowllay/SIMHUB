@@ -21,7 +21,8 @@ export async function GET() {
 $USER_ID = '${uid}'
 $SECRET  = '${secret}'
 $API_URL = '${api}'
-$DIR     = [System.IO.Path]::Combine($env:USERPROFILE, 'Documents', 'iRacing', 'telemetry')
+$docs    = [Environment]::GetFolderPath('MyDocuments')
+$DIR     = [System.IO.Path]::Combine($docs, 'iRacing', 'telemetry')
 $PF      = [System.IO.Path]::Combine($env:USERPROFILE, 'simhub-processed.json')
 
 function Write-Log { param($m); Write-Host "[$([DateTime]::Now.ToString('HH:mm:ss'))] $m" }
