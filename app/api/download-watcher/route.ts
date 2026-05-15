@@ -49,7 +49,13 @@ export async function GET() {
 
   const bat = `@echo off
 title SimHub Watcher
-"C:\\Program Files\\nodejs\\node.exe" -e "${js}"
+where node >nul 2>&1
+if errorlevel 1 (
+  echo Node.js n'est pas installe. Telechargez-le sur https://nodejs.org
+  pause
+  exit /b
+)
+node -e "${js}"
 pause
 `
 
