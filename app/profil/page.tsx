@@ -1,5 +1,6 @@
 import Header from '@/components/Header'
 import { goals, licences, categories } from '@/lib/data'
+import DownloadWatcher from './DownloadWatcher'
 
 export default function Profil() {
   return (
@@ -36,6 +37,9 @@ export default function Profil() {
               <div className="pfill h-1.5" style={{ width: '84%', background: 'var(--blue2)' }} />
             </div>
             <div className="text-xs" style={{ color: 'var(--dim)' }}>4 247 / 5 000 iR pour passer Pro</div>
+            <div className="mt-4">
+              <DownloadWatcher />
+            </div>
           </div>
 
           {/* Right col */}

@@ -64,13 +64,8 @@ export async function POST(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // Récupère l'utilisateur depuis le token envoyé par le watcher
-  let userId: string | null = null
-  const userToken = request.headers.get('x-user-token')
-  if (userToken) {
-    const { data } = await supabase.auth.getUser(userToken)
-    userId = data.user?.id ?? null
-  }
+  // Récupère le user_id envoyé par le watcher
+  const userId = request.headers.get('x-user-id') ?? null
 
   const { error } = await supabase.from('sessions').insert({
     circuit:  info.circuit,
