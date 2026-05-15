@@ -1,8 +1,18 @@
 import Header from '@/components/Header'
 import { goals, licences, categories } from '@/lib/data'
 import DownloadWatcher from './DownloadWatcher'
+import { createClient } from '@/lib/supabase/server'
+import { getDashboardStats } from '@/lib/queries'
 
-export default function Profil() {
+export default async function Profil() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const stats = await getDashboardStats()
+
+  const email    = user?.email ?? '—'
+  const initials = email.slice(0, 2).toUpperCase()
+  const winRate  = stats.total > 0 ? ((stats.wins / stats.total) * 100).toFixed(1) + '%' : '—'
+
   return (
     <>
       <Header title="Profil" subtitle="Ton profil pilote et statistiques globales" />
@@ -12,32 +22,29 @@ export default function Profil() {
           {/* Driver card */}
           <div className="card text-center">
             <div className="w-20 h-20 rounded-full mx-auto mb-3 flex items-center justify-center text-2xl font-bold text-white"
-              style={{ background: 'linear-gradient(135deg,#e63946,#ff7b86)' }}>LC</div>
-            <h2 className="text-lg font-bold text-white mb-0.5">Lilian C.</h2>
-            <p className="text-xs mb-4" style={{ color: 'var(--dim)' }}>delamogalilian@icloud.com</p>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <div className="rounded-lg p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="text-xs mb-1" style={{ color: 'var(--dim)' }}>iRating</div>
-                <div className="text-xl font-bold" style={{ color: 'var(--blue2)' }}>4 247</div>
-              </div>
-              <div className="rounded-lg p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="text-xs mb-1" style={{ color: 'var(--dim)' }}>Safety</div>
-                <div className="text-xl font-bold" style={{ color: 'var(--green)' }}>A 3.45</div>
-              </div>
-            </div>
+              style={{ background: 'linear-gradient(135deg,#e63946,#ff7b86)' }}>{initials}</div>
+            <h2 className="text-lg font-bold text-white mb-0.5">{email}</h2>
+            <p className="text-xs mb-4" style={{ color: 'var(--dim)' }}>iRacing · SimHub</p>
             <div className="grid grid-cols-3 gap-2 text-center mb-4">
-              {[['312','Sessions'],['47','Victoires'],['94%','Régularité']].map(([v,l]) => (
+              {[
+                [String(stats.total), 'Sessions'],
+                [String(stats.wins), 'Victoires'],
+                [winRate, 'Win rate'],
+              ].map(([v, l]) => (
                 <div key={l}>
                   <div className="text-base font-bold text-white">{v}</div>
                   <div className="text-xs" style={{ color: 'var(--dim)' }}>{l}</div>
                 </div>
               ))}
             </div>
-            <div className="ptrack h-1.5 mb-1 w-full">
-              <div className="pfill h-1.5" style={{ width: '84%', background: 'var(--blue2)' }} />
-            </div>
-            <div className="text-xs" style={{ color: 'var(--dim)' }}>4 247 / 5 000 iR pour passer Pro</div>
-            <div className="mt-4">
+            {stats.bestLap && (
+              <div className="rounded-lg p-3 mb-4 text-left" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="text-xs mb-1" style={{ color: 'var(--dim)' }}>Meilleur tour</div>
+                <div className="text-lg font-bold font-mono text-white">{stats.bestLap}</div>
+                <div className="text-xs" style={{ color: 'var(--dim)' }}>{stats.bestCircuit} · {stats.bestCar}</div>
+              </div>
+            )}
+            <div className="mt-2">
               <DownloadWatcher />
             </div>
           </div>

@@ -1,15 +1,15 @@
 import Header from '@/components/Header'
-import { getSessions, getSimStats, getTopCircuits, getSessionCount } from '@/lib/queries'
+import { getSessions, getSimStats, getTopCircuits, getDashboardStats } from '@/lib/queries'
 import LaptimeChart from './LaptimeChart'
 import SimChart from './SimChart'
 import Link from 'next/link'
 
 export default async function Dashboard() {
-  const [allSessions, simStats, topCircuits, totalCount] = await Promise.all([
+  const [allSessions, simStats, topCircuits, stats] = await Promise.all([
     getSessions(),
     getSimStats(),
     getTopCircuits(),
-    getSessionCount(),
+    getDashboardStats(),
   ])
   const recent = allSessions.slice(0, 7)
 
@@ -22,26 +22,34 @@ export default async function Dashboard() {
         <div className="grid grid-cols-4 gap-4 mb-5">
           {[
             {
-              label: 'Meilleur Tour', value: '2:01.234', sub: 'Spa · Porsche 911 GT3 R',
-              trend: '▲ −0.321s', trendSub: 'vs session préc.', trendCls: 'pos',
+              label: 'Meilleur Tour',
+              value: stats.bestLap ?? '—',
+              sub: stats.bestLap ? `${stats.bestCircuit} · ${stats.bestCar}` : 'Aucune session',
+              trend: stats.bestLap ? '↑ meilleur chrono' : '—', trendSub: '', trendCls: 'pos',
               iconColor: 'rgba(230,57,70,.1)', iconStroke: 'var(--accent)',
               icon: <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>,
             },
             {
-              label: 'Régularité', value: '94.2%', sub: 'Écart type ±0.412s',
-              trend: '▲ +1.4%', trendSub: 'vs mois dernier', trendCls: 'pos',
+              label: 'Simulateurs',
+              value: String(simStats.length > 0 ? simStats.reduce((a, s) => a + s.count, 0) : 0),
+              sub: simStats.length > 0 ? simStats.map(s => s.name).join(' · ') : 'Aucune session',
+              trend: simStats.length > 0 ? `${simStats.length} sims` : '—', trendSub: '', trendCls: '',
               iconColor: 'rgba(34,197,94,.1)', iconStroke: 'var(--green)',
               icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>,
             },
             {
-              label: 'Victoires', value: '47', sub: 'Sur 312 courses · 15.1%',
-              trend: '↑ +3', trendSub: 'ce mois', trendCls: '',
+              label: 'Victoires',
+              value: String(stats.wins),
+              sub: stats.total > 0 ? `Sur ${stats.total} courses · ${((stats.wins / stats.total) * 100).toFixed(1)}%` : 'Aucune session',
+              trend: stats.wins > 0 ? `↑ ${stats.wins}` : '—', trendSub: 'total', trendCls: '',
               iconColor: 'rgba(245,158,11,.1)', iconStroke: 'var(--yellow)',
               icon: <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>,
             },
             {
-              label: 'Sessions', value: '312', sub: '4 simulateurs · 28 circuits',
-              trend: `↑ ${totalCount}`, trendSub: 'total', trendCls: '',
+              label: 'Sessions',
+              value: String(stats.total),
+              sub: topCircuits.length > 0 ? `${topCircuits.length} circuits` : 'Aucune session',
+              trend: stats.total > 0 ? `↑ ${stats.total}` : '—', trendSub: 'total', trendCls: '',
               iconColor: 'rgba(59,130,246,.1)', iconStroke: 'var(--blue2)',
               icon: <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>,
             },

@@ -66,8 +66,44 @@ export async function getSessionCount() {
   try {
     const supabase = await createClient()
     const { count } = await supabase.from('sessions').select('*', { count: 'exact', head: true })
-    return count ?? mockSessions.length
+    return count ?? 0
   } catch {
-    return mockSessions.length
+    return 0
+  }
+}
+
+export async function getWinCount() {
+  try {
+    const supabase = await createClient()
+    const { count } = await supabase.from('sessions').select('*', { count: 'exact', head: true }).eq('pos', 1)
+    return count ?? 0
+  } catch {
+    return 0
+  }
+}
+
+export async function getDashboardStats() {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase.from('sessions').select('laptime, circuit, car, pos').not('laptime', 'is', null)
+    if (!data || data.length === 0) return { bestLap: null, bestCircuit: null, bestCar: null, wins: 0, total: 0 }
+
+    // Convertit "m:ss.mmm" en secondes pour comparer
+    const toSec = (t: string) => {
+      const [m, rest] = t.split(':')
+      return parseInt(m) * 60 + parseFloat(rest)
+    }
+
+    let best = data[0]
+    for (const s of data) {
+      if (s.laptime && best.laptime && toSec(s.laptime) < toSec(best.laptime)) best = s
+    }
+
+    const wins  = data.filter(s => s.pos === 1).length
+    const total = data.length
+
+    return { bestLap: best.laptime, bestCircuit: best.circuit, bestCar: best.car, wins, total }
+  } catch {
+    return { bestLap: null, bestCircuit: null, bestCar: null, wins: 0, total: 0 }
   }
 }
